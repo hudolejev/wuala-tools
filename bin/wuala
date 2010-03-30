@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Wuala loader
+
+WUALA=$HOME/wuala/wualacmd
+
+
+
+function displayHelp() {
+	echo "Usage:"
+	echo ""
+
+	echo "wuala start"
+	echo "  Start Wuala daemon."
+	echo "  Note that you'll have to login to your account to access your files."
+	echo ""
+
+	echo "wuala login [ <username> [ <password> ] ]"
+	echo "  Log in into existing Wuala account."
+	echo "  If user name or password are not provided, they will be prompted."
+	echo ""
+
+	######################################################################################
+	echo "wuala commands"
+	echo "  Display list of native commands. Wuala daemon will be started if not running."
+	echo ""
+
+	echo "wuala logout"
+	echo "  Log out from Wuala."
+	echo ""
+
+	echo "wuala exit"
+	echo "wuala shutdown"
+	echo "wuala stop"
+	echo "  Stop currently running Wuala daemon."
+	echo ""
+
+	echo "wuala help"
+	echo "  View help (you are reading it now)."
+	echo ""
+}
+
+
+
+# If called with no parameters, display help and exit
+if [ $# -lt 1 ]; then
+	displayHelp
+	exit 0
+fi
+
+# If called with `[[-]-]help` parameter, display help and exit
+if [ $1 == "help" -o $1 == "-help" -o $1 == "--help" ]; then
+	displayHelp
+	exit 0
+fi
+
+# If called with `commands`, display list of native commands
+if [ $1 == "commands" ]; then
+	$WUALA help 2>&1 &
+	exit 0
+fi
+
+
+
+# Start Wuala
+if [ $1 == "start" ]; then
+	$WUALA 2>&1 &
+	exit 0
+fi
+
+# Stop Wuala
+if [ $1 == "stop" -o $1 == "exit" ]; then
+	$WUALA exit
+	exit 0
+fi
+
+# Log in
+if [ $1 == "login" ]; then
+	# Get login
+	if [ $# -ge 2 ]; then
+		LOGIN=$2
+	else
+		echo "Enter username:"
+		read LOGIN
+	fi
+
+	# Get password
+	if [ $# -ge 3 ]; then
+		PASSW=$3
+	else
+		echo "Enter password for $LOGIN:"
+		read PASSW
+	fi
+
+	# Sign in
+	$WUALA login $LOGIN $PASSW 2>&1 &
+	exit 0
+fi
+
+
+
+# Other parameters -- feed directly to Wuala launcher
+$WUALA $@
