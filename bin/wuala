@@ -2,7 +2,7 @@
 #
 # Wuala loader
 
-WUALA=$HOME/wuala/wualacmd
+WUALA=$HOME/wuala/wuala -nogui
 
 
 
