@@ -2,42 +2,65 @@
 #
 # Wuala loader
 
-WUALA="$HOME/wuala/wuala -nogui"
+if [ -z "$JAVA" ]; then
+	JAVA=`which java`
+fi
+JAVA_OPTS="-ea -Xmx256m"
+WUALA_LOADER="$HOME/wuala/loader2.jar"
+LOCK_FILE="/var/lock/wuala"
 
 
 
 function displayHelp() {
-	echo "Usage:"
-	echo ""
+	echo "\
+Usage:
 
-	echo "wuala start"
-	echo "  Start Wuala daemon."
-	echo "  Note that you'll have to login to your account to access your files."
-	echo ""
+wuala start
+  Start Wuala daemon. Note that you'll have to login to your account to access
+  your files.
 
-	echo "wuala login [ <username> [ <password> ] ]"
-	echo "  Log in into existing Wuala account."
-	echo "  If user name or password are not provided, they will be prompted."
-	echo ""
+wuala login [ <username> [ <password> ] ]
+  Log in into existing Wuala account. If user name or password are not provided,
+  they will be prompted.
 
-	######################################################################################
-	echo "wuala commands"
-	echo "  Display list of native commands. Wuala daemon will be started if not running."
-	echo ""
+wuala commands
+  Display list of native commands. Wuala daemon will be started if not running.
 
-	echo "wuala logout"
-	echo "  Log out from Wuala."
-	echo ""
+wuala logout
+  Log out from Wuala.
 
-	echo "wuala exit"
-	echo "wuala shutdown"
-	echo "wuala stop"
-	echo "  Stop currently running Wuala daemon."
-	echo ""
+wuala exit ( wuala shutdown, wuala stop )
+  Stop currently running Wuala daemon.
 
-	echo "wuala help"
-	echo "  View help (you are reading it now)."
-	echo ""
+wuala help ( wuala -help, wuala --help )
+  View help (you are reading it now).
+"
+}
+
+function startWuala() {
+	if [ -e $LOCK_FILE ]; then
+		echo "Wuala already started."
+	else
+		$JAVA $JAVA_OPTS -jar $WUALA_LOADER -installed -nogui "$@" 2>&1 &
+		[ $? -eq 0 ] && touch $LOCK_FILE
+	fi
+}
+
+function stopWuala() {
+	if [ -e $LOCK_FILE ]; then
+		$JAVA $JAVA_OPTS -jar $WUALA_LOADER -installed -nogui exit
+		trap "rm -f $LOCK_FILE" 0 
+	else
+		echo "Wuala not started, nothing to stop."
+	fi
+}
+
+function wualaCommand() {
+	if [ -e $LOCK_FILE ]; then
+		$JAVA $JAVA_OPTS -jar $WUALA_LOADER -installed -nogui "$@"
+	else
+		echo "Wuala not started."
+	fi
 }
 
 
@@ -54,28 +77,33 @@ if [ $1 == "help" -o $1 == "-help" -o $1 == "--help" ]; then
 	exit 0
 fi
 
-# If called with `commands`, display list of native commands
-if [ $1 == "commands" ]; then
-	$WUALA help 2>&1 &
-	exit 0
-fi
-
 
 
 # Start Wuala
 if [ $1 == "start" ]; then
-	$WUALA 2>&1 &
+	startWuala
 	exit 0
 fi
 
 # Stop Wuala
-if [ $1 == "stop" -o $1 == "exit" ]; then
-	$WUALA exit
+if [ $1 == "stop" -o $1 == "exit" -o $1 == "shutdown" ]; then
+	stopWuala
+	exit 0
+fi
+
+# If called with `commands`, display list of native commands
+if [ $1 == "commands" ]; then
+	wualaCommand help
 	exit 0
 fi
 
 # Log in
 if [ $1 == "login" ]; then
+	if [ ! -e $LOCK_FILE ]; then
+		echo "Wuala not started."
+		exit 0
+	fi
+
 	# Get login
 	if [ $# -ge 2 ]; then
 		LOGIN=$2
@@ -93,11 +121,12 @@ if [ $1 == "login" ]; then
 	fi
 
 	# Sign in
-	$WUALA login $LOGIN $PASSW 2>&1 &
+	wualaCommand login $LOGIN $PASSW
 	exit 0
 fi
 
 
 
 # Other parameters -- feed directly to Wuala launcher
-$WUALA $@
+wualaCommand $@
+
